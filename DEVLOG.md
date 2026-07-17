@@ -165,12 +165,26 @@ Implemented the core checkout logic: `check_stock_availability()` and `create_or
 
 ---
 
+## Phase 14 — API Layer: `schemas.py` and FastAPI Routers
+
+**What happened:**
+Built the HTTP-facing layer on top of `crud.py`: Pydantic request/response schemas (`schemas.py`), a `pos` router (`GET /api/menus`, `POST /api/checkout`), an `orders` router (`GET /api/orders`, `GET /api/orders/{id}`), and the FastAPI app entry point (`main.py`).
+
+**Key design points:**
+- Request/response shapes are kept separate from the SQLAlchemy models (`models.py`) on purpose — one describes database tables, the other describes what a client is allowed to send/receive over HTTP. Conflating the two would leak internal structure and make the API brittle to schema changes.
+- Domain exceptions raised in `crud.py` (`InsufficientStockError`, `ValueError`) are caught at the router layer and translated into `HTTPException` with appropriate status codes. `crud.py` itself stays free of any HTTP-specific concepts, keeping the business logic reusable outside a web context (e.g. from a script, as already done in testing).
+- `Depends(get_db)` provides a fresh database session per request, closed automatically afterward.
+
+**Testing performed:** Verified via the auto-generated Swagger UI (`/docs`) — `GET /api/menus` returns the full category/menu/price tree, `POST /api/checkout` successfully creates orders, and an oversized quantity request correctly returns HTTP 400 with a descriptive message rather than crashing.
+
+**Status:** Full backend flow (database → business logic → HTTP API) verified working end-to-end. No UI yet — all testing done through Swagger.
+
+---
+
 ## Next Steps
 
-- [ ] Write `schemas.py` — Pydantic request/response models for the API layer
-- [ ] Build FastAPI routers (`GET /api/menus`, `POST /api/checkout`, `GET /api/orders`)
-- [ ] Build Jinja2 templates + JS for the actual POS screen
+- [ ] Build Jinja2 templates + JS for the actual POS screen (cart interaction, checkout button calling `/api/checkout`)
 - [ ] Add `is_sellable` flag to `menus` (see Phase 11) so base units are hidden from the POS menu grid
 - [ ] Replace the plain-text test user (`password_hash = 'not_hashed_yet'`) with real password hashing once auth is addressed
-- [ ] End-to-end testing through the API/UI layer, not just direct Python calls
+- [ ] End-to-end testing through the actual UI, not just Swagger/direct Python calls
 - [ ] Push completed milestones to GitHub with updated documentation
