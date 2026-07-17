@@ -181,9 +181,49 @@ Built the HTTP-facing layer on top of `crud.py`: Pydantic request/response schem
 
 ---
 
+## Phase 15 — Cashier UI (Jinja2 Templates)
+
+**What was built:**
+- Server-rendered shell (`base.html`) + cashier page (`pos.html`), styled with a
+  custom "nota warung" theme (`style.css`) — deep green header, chili-red
+  accents, receipt-style cart panel with a torn-paper edge.
+- `pos.js` handles all client-side state: fetching `/api/menus`, rendering
+  category tabs + menu grid, a variant picker modal (Goreng/Bakar/etc), a
+  sambal picker modal, cart state, and calling `POST /api/checkout`.
+
+**Key decisions:**
+- Menu data is rendered entirely client-side via `fetch`, not server-rendered
+  with Jinja2 — keeps a single source of truth for how the cart/checkout flow
+  works, consistent with the original design (`cart` is pure frontend state
+  until checkout).
+- Base-unit items (e.g. "Lele (per ekor - base unit...)") are filtered out of
+  the cashier grid by a name-pattern stopgap in `isSellable()` — a real
+  `is_sellable` column on `menus` is still a TODO from the original design
+  discussion and should replace this before the UI is considered "real".
+
+**Bugs hit & fixed:**
+- `TemplateResponse("pos.html", {"request": request})` crashed with
+  `TypeError: cannot use 'tuple' as a dict key` — a Jinja2/Starlette version
+  incompatibility with the old calling convention. Fixed by switching to the
+  newer signature: `templates.TemplateResponse(request, "pos.html")`.
+- Two leftover `@app.get("/")` routes in `main.py` (one returning raw JSON,
+  one rendering the template) meant the first-registered route always won —
+  the JSON route had to be removed, not just reordered, and moved to
+  `/api/status`.
+- First working `/api/menus` render came back blank because the frontend
+  assumed field names (`category`, `variant.name`) that didn't match the
+  actual response (`name`, `variant_name`), and `price` is returned as a
+  **string** ("18000.00") requiring `parseFloat()` before any math.
+
+**Verified working end-to-end:** menu browsing → variant selection → sambal
+selection → cart → checkout → stock validation error surfaced correctly in
+the UI (tested with an item that had zero opening stock).
+
+**Next up:** order history page, in-browser stock adjustment (no more editing
+Excel + re-seeding for stock corrections), and cart quantity +/- controls.
+
 ## Next Steps
 
-- [ ] Build Jinja2 templates + JS for the actual POS screen (cart interaction, checkout button calling `/api/checkout`)
 - [ ] Add `is_sellable` flag to `menus` (see Phase 11) so base units are hidden from the POS menu grid
 - [ ] Replace the plain-text test user (`password_hash = 'not_hashed_yet'`) with real password hashing once auth is addressed
 - [ ] End-to-end testing through the actual UI, not just Swagger/direct Python calls
