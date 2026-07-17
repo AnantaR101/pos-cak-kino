@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Stok - Cak Kino{% endblock %}
+
+{% block content %}
+<div class="admin-shell admin-shell--single">
+    <section class="stock-pane">
+        <header class="admin-pane__header">
+            <h1>Manajemen Stok</h1>
+            <p class="admin-pane__sub">
+                Koreksi stok langsung di sini &mdash; tidak perlu lewat Excel + re-seed lagi.
+                Isi angka positif untuk menambah (restock), negatif untuk mengurangi (koreksi selisih).
+            </p>
+        </header>
+        <input type="text" id="stockSearch" class="admin-search" placeholder="Cari menu atau kategori...">
+        <div class="stock-table" id="stockTable" aria-live="polite">
+            <!-- filled by JS -->
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/stock.js" defer></script>
+{% endblock %}

@@ -10,6 +10,7 @@ This log tracks the progress, decisions, and reasoning behind this project. Unli
 Initial plan was to build a full multi-unit restaurant ERP system (menu, inventory, procurement, multi-branch). After evaluating time constraints and portfolio goals, the scope was deliberately reduced to a **standalone POS (cashier) system** for a single restaurant.
 
 **Decision:** Build POS only, not a full ERP.
+
 **Rationale:** A focused, fully-working POS system with solid data design demonstrates more relevant skill (for BA/BI/Strategy & Ops roles) than a half-finished multi-module ERP. Depth over breadth.
 
 ---
@@ -31,6 +32,7 @@ Initial plan was to build a full multi-unit restaurant ERP system (menu, invento
 Designed a normalized schema based on a generic restaurant POS: `users`, `menu_categories`, `menus`, `orders`, `order_details`, `payments`. Every ordered item stored as one row in `order_details` (no comma-separated fields), so that reporting (best sellers, revenue by category, etc.) would not require string parsing.
 
 **Decision:** Fully normalized, one-item-per-row order structure from the start.
+
 **Rationale:** This is the foundation that makes later analytics (SQL/Python/Power BI) possible without a costly ETL/reshaping step.
 
 ---
@@ -45,6 +47,7 @@ Received a photo of the restaurant's actual paper order ticket (nota). This reve
 - Drinks tracked with a separate queue numbering on the original ticket
 
 **Decision:** Redesign the schema around these real constraints rather than a generic template.
+
 **Rationale:** Portfolio value comes from solving a real operational problem, not a textbook one. This also surfaced a requirement that wasn't in the original scope: inventory/stock tracking.
 
 ---
@@ -94,6 +97,7 @@ Created the GitHub repository, fixed `.gitignore` to exclude `venv/` and `.env`,
 Originally, `price` lived directly on the `menus` table. After reviewing the real menu structure (Phase 4), this was revised: `menus.price` is now considered legacy/unused (kept only for backward compatibility, defaulted to 0), and **all pricing lives in `menu_variants`**. Items without real variants (e.g. plain rice, drinks) still get exactly one variant row named `Default`.
 
 **Decision:** Single source of truth for price = `menu_variants`, with no exceptions.
+
 **Rationale:** Having two possible places for price (`menus.price` vs `menu_variants.price`) creates ambiguity about which one an application should trust. Forcing every menu item — variant or not — through the same table removes that ambiguity and keeps downstream logic (checkout, reporting) simple and consistent.
 
 ---
@@ -104,7 +108,9 @@ Originally, `price` lived directly on the `menus` table. After reviewing the rea
 Decided how menu/category/price/stock master data should be maintained and fed into the database.
 
 **Options considered:** hardcoded Python data structures, a JSON file, or an Excel workbook.
+
 **Decision:** Excel workbook (`data/master_menu.xlsx`), read via `pandas`/`openpyxl` in a `seed.py` script.
+
 **Rationale:** This project simulates a small independent restaurant (UMKM). A real owner in that context would far more plausibly maintain their menu in Excel than edit Python or JSON directly. It also fits the project owner's accounting background, where spreadsheet-based data maintenance is a familiar, realistic workflow.
 
 **Workbook design decisions:**
@@ -184,47 +190,85 @@ Built the HTTP-facing layer on top of `crud.py`: Pydantic request/response schem
 ## Phase 15 — Cashier UI (Jinja2 Templates)
 
 **What was built:**
-- Server-rendered shell (`base.html`) + cashier page (`pos.html`), styled with a
-  custom "nota warung" theme (`style.css`) — deep green header, chili-red
-  accents, receipt-style cart panel with a torn-paper edge.
-- `pos.js` handles all client-side state: fetching `/api/menus`, rendering
-  category tabs + menu grid, a variant picker modal (Goreng/Bakar/etc), a
-  sambal picker modal, cart state, and calling `POST /api/checkout`.
+- Server-rendered shell (`base.html`) + cashier page (`pos.html`), styled with a custom "nota warung" theme (`style.css`) — deep green header, chili-red accents, receipt-style cart panel with a torn-paper edge.
+- `pos.js` handles all client-side state: fetching `/api/menus`, rendering category tabs + menu grid, a variant picker modal (Goreng/Bakar/etc), a sambal picker modal, cart state, and calling `POST /api/checkout`.
 
 **Key decisions:**
-- Menu data is rendered entirely client-side via `fetch`, not server-rendered
-  with Jinja2 — keeps a single source of truth for how the cart/checkout flow
-  works, consistent with the original design (`cart` is pure frontend state
-  until checkout).
-- Base-unit items (e.g. "Lele (per ekor - base unit...)") are filtered out of
-  the cashier grid by a name-pattern stopgap in `isSellable()` — a real
-  `is_sellable` column on `menus` is still a TODO from the original design
-  discussion and should replace this before the UI is considered "real".
+- Menu data is rendered entirely client-side via `fetch`, not server-rendered with Jinja2 — keeps a single source of truth for how the cart/checkout flow works, consistent with the original design (`cart` is pure frontend state until checkout).
+- Base-unit items (e.g. "Lele (per ekor - base unit...)") are filtered out of the cashier grid by a name-pattern stopgap in `isSellable()` — a real `is_sellable` column on `menus` is still a TODO from the original design discussion and should replace this before the UI is considered "real".
 
 **Bugs hit & fixed:**
-- `TemplateResponse("pos.html", {"request": request})` crashed with
-  `TypeError: cannot use 'tuple' as a dict key` — a Jinja2/Starlette version
-  incompatibility with the old calling convention. Fixed by switching to the
-  newer signature: `templates.TemplateResponse(request, "pos.html")`.
-- Two leftover `@app.get("/")` routes in `main.py` (one returning raw JSON,
-  one rendering the template) meant the first-registered route always won —
-  the JSON route had to be removed, not just reordered, and moved to
-  `/api/status`.
-- First working `/api/menus` render came back blank because the frontend
-  assumed field names (`category`, `variant.name`) that didn't match the
-  actual response (`name`, `variant_name`), and `price` is returned as a
-  **string** ("18000.00") requiring `parseFloat()` before any math.
+- `TemplateResponse("pos.html", {"request": request})` crashed with `TypeError: cannot use 'tuple' as a dict key` — a Jinja2/Starlette version incompatibility with the old calling convention. Fixed by switching to the newer signature: `templates.TemplateResponse(request, "pos.html")`.
+- Two leftover `@app.get("/")` routes in `main.py` (one returning raw JSON, one rendering the template) meant the first-registered route always won — the JSON route had to be removed, not just reordered, and moved to `/api/status`.
+- First working `/api/menus` render came back blank because the frontend assumed field names (`category`, `variant.name`) that didn't match the actual response (`name`, `variant_name`), and `price` is returned as a **string** ("18000.00") requiring `parseFloat()` before any math.
 
-**Verified working end-to-end:** menu browsing → variant selection → sambal
-selection → cart → checkout → stock validation error surfaced correctly in
-the UI (tested with an item that had zero opening stock).
+**Verified working end-to-end:** menu browsing → variant selection → sambal selection → cart → checkout → stock validation error surfaced correctly in the UI (tested with an item that had zero opening stock).
 
-**Next up:** order history page, in-browser stock adjustment (no more editing
-Excel + re-seeding for stock corrections), and cart quantity +/- controls.
+---
+
+## Phase 16 — Order History + Nota Detail View
+
+**What was built:**
+- `GET /api/orders` — returns all orders, newest first, with cashier, payment, and full item-line detail embedded per order (not just header totals).
+- `GET /api/orders/{id}` — single-order detail, same shape, for a dedicated receipt view.
+- `/riwayat` page — list of past transactions rendered as expandable cards; clicking a card reveals a nota-style breakdown (menu, variant, sambal, quantity, subtotal) matching the physical receipt format the whole system is based on.
+- **Void order**: `PATCH /api/orders/{id}/void` — cancels a completed order and reverses its stock impact. Reuses the same Paket → component expansion logic from `create_order()` in `crud.py`, so voiding a bundle correctly puts stock back on every component, not just the bundle line itself. Voided orders are marked `status = 'voided'`, not deleted — consistent with the "orders are never hard-deleted" principle from the original schema design.
+- Every void is logged to `stock_movements` with `movement_type = 'void'`, keeping the audit trail complete alongside `opening` / `sale` / `adjustment`.
+
+**Key decision:** void reverses stock rather than simply deleting the order, because the original transaction still needs to exist for reporting (e.g. "how many orders were voided today" is itself a useful metric) — this mirrors the earlier decision to never hard-delete orders.
+
+---
+
+## Phase 17 — Web-Based Stock Management (`/stok`)
+
+**What was built:**
+- `GET /api/stock` — current stock for every regular menu item, grouped by category for display.
+- `PATCH /api/stock/{menu_id}` — apply a signed delta to stock (positive to restock, negative to correct a miscount) directly from the browser.
+- `/stok` page — table grouped by category, inline quantity field + Save button per row.
+
+**Key decision:** this replaces the Excel → `seed.py` round-trip for routine stock corrections. Excel/`master_menu.xlsx` remains the source of truth for *opening* stock and menu structure (categories, variants, bundles) — it is not meant to be re-edited for day-to-day stock corrections once the system is live. Every correction made through `/stok` is still logged as a `stock_movements` row with `movement_type = 'adjustment'`, so the audit trail stays intact regardless of whether stock changed via a sale, a void, or a manual fix.
+
+---
+
+## Phase 18 — Cart Quantity Controls
+
+**What was built:** replaced the single "Hapus" (remove) action on each cart line with a `− qty +` stepper, plus a separate explicit "Hapus" for removing the line entirely.
+
+**Bug fixed:** previously, "Hapus" removed the entire line regardless of quantity — ordering 3x of an item and clicking "Hapus" once wiped all 3, not 1. This wasn't a backend issue; the cart is pure frontend state until checkout, so the fix was entirely in `pos.js`'s cart-rendering logic.
+
+---
+
+## Phase 19 — Menu Name Ambiguity in the Cashier UI
+
+**Context:** several menu names repeat across categories by design ("Dada" and "Tepong" exist under both Ayam and Bebek) — this was already handled correctly at the database level back in Phase 12 (composite key of category + name, not name alone). What remained was a **UI-level** ambiguity: the cart and nota could show "1x Dada" with no indication of which category it came from, which is confusing when both an Ayam-Dada and Bebek-Dada are in the same order.
+
+**Fix:** cart lines and order/nota detail views now display the category alongside the menu name (e.g. "Dada (Ayam)") wherever a name collision is possible, rather than relying on the database-level uniqueness fix alone to prevent confusion for the person reading the receipt.
+
+---
+
+## Phase 20 — `is_sellable` as a Real Column (Retiring the Name-Pattern Stopgap)
+
+**Context:** since Phase 15, "base unit" items (e.g. "Lele per ekor") were hidden from the cashier grid using a frontend name-pattern match (`isSellable()` checking for "base unit" in the name) — flagged at the time as a stopgap, not a real fix.
+
+**What was built:**
+- Alembic migration adding `is_sellable BOOLEAN NOT NULL DEFAULT true` to `menus`, with a one-time data fix in the same migration marking existing base-unit items (name matching "base unit" or "per ekor") as `false` — so the correction ships with the schema change itself rather than depending on a manual follow-up step.
+- `seed.py` (`seed_menus()`) updated to read an `is_sellable` column ("Y"/"N") from the `Menus` sheet in `master_menu.xlsx`, using a `getattr(..., "Y")` fallback so the script doesn't break on an Excel file that hasn't been updated with the new column yet.
+- Also fixed while in there: `is_active` previously only got set on first insert and was never re-synced on subsequent `seed.py` runs. Both `is_active` and `is_sellable` are now updated every run, so changing either flag in Excel and re-seeding actually takes effect.
+- `GET /api/menus` now filters on the real `is_sellable` column; `isSellable()` in `pos.js` — the name-pattern check — is retired.
+
+**Migration order matters here:** `alembic upgrade head` must run before `python seed.py` — the seed script assumes the `is_sellable` column already exists in the database.
+
+---
+
+## Documentation Update (Phase 16-20)
+
+`README.md` updated: new endpoints (`/api/orders/{id}`, `/api/orders/{id}/void`, `/api/stock`, `PATCH /api/stock/{menu_id}`), updated project structure (`orders.py` / `stock.py` routers, `orders.html` / `stock.html` templates, `orders.js` / `stock.js`), updated roadmap reflecting Riwayat/Stok/void/`is_sellable` as done.
+
+---
 
 ## Next Steps
 
-- [ ] Add `is_sellable` flag to `menus` (see Phase 11) so base units are hidden from the POS menu grid
-- [ ] Replace the plain-text test user (`password_hash = 'not_hashed_yet'`) with real password hashing once auth is addressed
+- [ ] Cashier login / authentication (replace the plain-text test user — `password_hash = 'not_hashed_yet'` — with real password hashing once auth is addressed)
 - [ ] End-to-end testing through the actual UI, not just Swagger/direct Python calls
+- [ ] Sample SQL / Power BI reporting queries, connecting directly to PostgreSQL
 - [ ] Push completed milestones to GitHub with updated documentation

@@ -40,6 +40,10 @@ class Menu(Base):
     type = Column(String(20), default="regular")  # "regular" atau "paket"
     price = Column(Numeric(10, 2), nullable=False)
     is_active = Column(Boolean, default=True)
+    # Menggantikan filter nama "base unit" stopgap di pos.js (lihat DEVLOG
+    # Phase 11). False untuk item base-unit seperti IKAN-LELE-PC yang cuma
+    # dipakai sebagai komponen Paket dan tidak boleh muncul di grid kasir.
+    is_sellable = Column(Boolean, default=True, nullable=False, server_default="true")
 
     category = relationship("MenuCategory", back_populates="menus")
     variants = relationship("MenuVariant", back_populates="menu")
@@ -137,6 +141,10 @@ class OrderDetail(Base):
 
     order = relationship("Order", back_populates="order_details")
     menu = relationship("Menu")
+    # Ditambahkan supaya riwayat order & nota bisa nampilin nama varian/sambal
+    # langsung dari relasi, bukan cuma ID (dipakai di crud.serialize_order).
+    variant = relationship("MenuVariant")
+    sambal = relationship("Sambal")
 
 
 class Payment(Base):

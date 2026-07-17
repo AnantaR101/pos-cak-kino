@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Kasir - Penyetan Cak Kino{% endblock %}
+
+{% block content %}
+<div class="pos-shell">
+
+    <!-- Left: menu browsing -->
+    <section class="menu-pane">
+        <header class="menu-pane__header">
+            <div class="brand">
+                <span class="brand__mark">CK</span>
+                <div class="brand__text">
+                    <h1>Penyetan Cak Kino</h1>
+                    <span class="brand__sub">Kasir</span>
+                </div>
+            </div>
+            <div class="shift-info">
+                <span id="clock">--:--</span>
+            </div>
+        </header>
+
+        <nav class="category-tabs" id="categoryTabs" aria-label="Kategori menu">
+            <!-- filled by JS -->
+        </nav>
+
+        <div class="menu-grid" id="menuGrid" aria-live="polite">
+            <!-- filled by JS -->
+        </div>
+    </section>
+
+    <!-- Right: receipt-style cart -->
+    <aside class="receipt">
+        <div class="receipt__paper">
+            <div class="receipt__head">
+                <h2>Nota</h2>
+                <span class="receipt__invoice" id="invoiceLabel">belum dibayar</span>
+            </div>
+
+            <div class="receipt__lines" id="cartLines">
+                <p class="receipt__empty">Keranjang masih kosong.<br>Pilih menu di sebelah kiri untuk memulai.</p>
+            </div>
+
+            <div class="receipt__totals">
+                <div class="receipt__row">
+                    <span>Subtotal</span>
+                    <span id="subtotal">Rp 0</span>
+                </div>
+                <div class="receipt__row receipt__row--grand">
+                    <span>Total</span>
+                    <span id="grandTotal">Rp 0</span>
+                </div>
+            </div>
+
+            <div class="receipt__controls">
+                <label class="field">
+                    <span>Tipe Pesanan</span>
+                    <select id="customerType">
+                        <option value="dine_in">Makan di Tempat</option>
+                        <option value="take_away">Bawa Pulang</option>
+                    </select>
+                </label>
+                <label class="field">
+                    <span>Pembayaran</span>
+                    <select id="paymentMethod">
+                        <option value="cash">Tunai</option>
+                        <option value="qris">QRIS</option>
+                    </select>
+                </label>
+                <label class="field">
+                    <span>Uang Diterima</span>
+                    <input type="number" id="amountPaid" placeholder="0" min="0" step="500">
+                </label>
+            </div>
+
+            <button class="btn-checkout" id="checkoutBtn">
+                Selesaikan Pembayaran
+            </button>
+            <p class="receipt__note" id="statusNote"></p>
+        </div>
+    </aside>
+</div>
+
+<!-- Variant picker modal (Goreng/Bakar/etc) -->
+<div class="modal" id="variantModal" hidden>
+    <div class="modal__box">
+        <h3 id="variantModalTitle">Pilih Varian</h3>
+        <div class="modal__options" id="variantOptions"></div>
+        <div class="modal__actions">
+            <button class="btn-ghost" id="variantCancel">Batal</button>
+            <button class="btn-primary" id="variantConfirm">Lanjut</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sambal picker modal -->
+<div class="modal" id="sambalModal" hidden>
+    <div class="modal__box">
+        <h3 id="sambalModalTitle">Pilih Sambal</h3>
+        <div class="modal__options" id="sambalOptions"></div>
+        <div class="modal__actions">
+            <button class="btn-ghost" id="sambalCancel">Batal</button>
+            <button class="btn-primary" id="sambalConfirm">Tambah ke Nota</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/pos.js" defer></script>
+{% endblock %}

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import MenuCategory
 from app.schemas import CheckoutRequest, OrderOut, MenuCategoryOut
-from app.crud import create_order, CartItem, InsufficientStockError
+from app.crud import create_order, serialize_order, CartItem, InsufficientStockError
 
 router = APIRouter(prefix="/api", tags=["pos"])
 
@@ -54,7 +54,7 @@ def checkout(payload: CheckoutRequest, db: Session = Depends(get_db)):
             amount_paid=payload.amount_paid,
             items=cart_items,
         )
-        return order
+        return serialize_order(order)
 
     except InsufficientStockError as e:
         raise HTTPException(status_code=400, detail=str(e))

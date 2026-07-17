@@ -59,10 +59,26 @@ def seed_categories(db, df: pd.DataFrame) -> dict:
 
 
 def seed_menus(db, df: pd.DataFrame, category_map: dict) -> dict:
-    """Insert semua menu. Return dict {menu_code: id_di_database}."""
+    """
+    Insert semua menu. Return dict {menu_code: id_di_database}.
+
+    Membaca kolom 'is_sellable' ('Y'/'N') dari sheet Menus, sama polanya
+    dengan 'is_active' -- dipakai buat nandain item base-unit (mis.
+    IKAN-LELE-PC) yang tidak boleh muncul di grid kasir tapi tetap butuh
+    baris stok sendiri (lihat DEVLOG Phase 11 & Phase 15).
+
+    Kolom ini opsional: kalau sheet Excel-mu belum di-update dan belum
+    punya kolom 'is_sellable', semua menu dianggap 'Y' (default lama,
+    sebelum flag ini ada) -- supaya seed.py tidak langsung error di
+    workbook lama. Tambahkan kolomnya di Excel begitu sempat.
+    """
     code_to_id = {}
     for row in df.itertuples():
         category_id = category_map[row.category_code]
+        is_active = (row.is_active == "Y")
+        # getattr dengan fallback "Y", bukan row.is_sellable langsung,
+        # supaya workbook lama yang belum punya kolom ini tetap jalan.
+        is_sellable = (getattr(row, "is_sellable", "Y") == "Y")
 
         # PENTING: cek "sudah ada" berdasarkan (category_id, name), BUKAN
         # name saja -- karena nama seperti "Dada"/"Tepong"/"Kepala" dipakai
@@ -72,6 +88,10 @@ def seed_menus(db, df: pd.DataFrame, category_map: dict) -> dict:
             category_id=category_id, name=row.menu_name
         ).first()
         if existing:
+            # Sinkronkan flag dari Excel kalau berubah (mis. item yang tadinya
+            # tersembunyi mau ditampilkan lagi, atau sebaliknya).
+            existing.is_active = is_active
+            existing.is_sellable = is_sellable
             code_to_id[row.menu_code] = existing.id
             continue
 
@@ -80,7 +100,8 @@ def seed_menus(db, df: pd.DataFrame, category_map: dict) -> dict:
             name=row.menu_name,
             type=row.type,
             price=0,  # legacy, harga asli ada di MenuVariant
-            is_active=(row.is_active == "Y"),
+            is_active=is_active,
+            is_sellable=is_sellable,
         )
         db.add(menu)
         db.flush()

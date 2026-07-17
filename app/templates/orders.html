@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Riwayat Transaksi - Cak Kino{% endblock %}
+
+{% block content %}
+<div class="admin-shell">
+    <section class="order-list-pane">
+        <header class="admin-pane__header">
+            <h1>Riwayat Transaksi</h1>
+            <p class="admin-pane__sub">Klik salah satu transaksi untuk melihat notanya.</p>
+        </header>
+        <input type="text" id="orderSearch" class="admin-search" placeholder="Cari nomor invoice...">
+        <div class="order-list" id="orderList" aria-live="polite">
+            <!-- filled by JS -->
+        </div>
+    </section>
+
+    <aside class="receipt">
+        <div class="receipt__paper" id="notaDetail">
+            <p class="receipt__empty">Pilih transaksi di sebelah kiri untuk melihat nota.</p>
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/orders.js" defer></script>
+{% endblock %}

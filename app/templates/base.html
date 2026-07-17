@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}POS Cak Kino{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="app-nav">
+        <a class="app-nav__link {{ 'is-active' if request.url.path == '/' else '' }}" href="/">Kasir</a>
+        <a class="app-nav__link {{ 'is-active' if request.url.path == '/riwayat' else '' }}" href="/riwayat">Riwayat</a>
+        <a class="app-nav__link {{ 'is-active' if request.url.path == '/stok' else '' }}" href="/stok">Stok</a>
+    </nav>
+    {% block content %}{% endblock %}
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
